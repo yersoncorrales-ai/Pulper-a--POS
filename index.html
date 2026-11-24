@@ -97,7 +97,7 @@
 
   <!-- APLICACIÓN PRINCIPAL -->
   <div id="appScreen" class="hidden max-w-7xl mx-auto p-3 md:p-6">
-    <header class="no-print bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
+    <header class="no-print bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <img id="headerLogo" src="" alt="Logo" class="w-12 h-12 rounded-xl object-cover border bg-slate-100 hidden" />
         <div id="headerLogoFallback" class="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg">PV</div>
@@ -121,19 +121,23 @@
       </div>
     </header>
 
-    <!-- Panel en tiempo real visible para el administrador: Ingresos y Total de Caja -->
-    <div id="adminLiveSummary" class="no-print hidden grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-      <div class="bg-white rounded-2xl p-3.5 border border-indigo-200 shadow-sm">
-        <div class="text-[11px] font-semibold text-slate-500">Ingreso Total Registrado (Admin en vivo)</div>
-        <div id="liveTotalIncomeText" class="text-lg font-bold text-indigo-700 mt-0.5">L 0.00</div>
+    <!-- Panel en tiempo real de Ingresos y Total de Caja (visible para el administrador) -->
+    <div id="adminLiveSummaryBar" class="no-print hidden mb-4 grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-slate-900 text-white rounded-2xl p-3.5 shadow-sm">
+      <div class="bg-white/10 rounded-xl p-2.5">
+        <div class="text-[11px] text-slate-300">Ingresos Totales (Ventas)</div>
+        <div id="liveTotalIncomeText" class="text-base font-bold text-emerald-300">L 0.00</div>
       </div>
-      <div class="bg-white rounded-2xl p-3.5 border border-emerald-200 shadow-sm">
-        <div class="text-[11px] font-semibold text-slate-500">Efectivo Esperado en Caja (Inicial + Efectivo)</div>
-        <div id="liveCashTotalText" class="text-lg font-bold text-emerald-700 mt-0.5">L 0.00</div>
+      <div class="bg-white/10 rounded-xl p-2.5">
+        <div class="text-[11px] text-slate-300">Efectivo Inicial Caja</div>
+        <div id="liveOpeningCashText" class="text-base font-bold text-amber-300">L 0.00</div>
       </div>
-      <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm">
-        <div class="text-[11px] font-semibold text-slate-500">Estado de Caja Actual</div>
-        <div id="liveCashStatusText" class="text-sm font-bold text-slate-800 mt-1">Cerrada</div>
+      <div class="bg-white/10 rounded-xl p-2.5">
+        <div class="text-[11px] text-slate-300">Efectivo Esperado en Caja</div>
+        <div id="liveExpectedCashText" class="text-base font-bold text-sky-300">L 0.00</div>
+      </div>
+      <div class="bg-white/10 rounded-xl p-2.5">
+        <div class="text-[11px] text-slate-300">Total de Caja Actual</div>
+        <div id="liveTotalBoxText" class="text-base font-bold text-white">L 0.00</div>
       </div>
     </div>
 
@@ -159,6 +163,11 @@
         <div class="flex flex-wrap gap-2 mb-3">
           <input id="posSearch" oninput="renderPosProducts()" type="text" placeholder="Buscar producto..." class="flex-1 min-w-[180px] border rounded-xl px-3 py-2 text-sm" />
           <select id="posSectionFilter" onchange="renderPosProducts()" class="border rounded-xl px-3 py-2 text-sm"></select>
+          <select id="posClientType" onchange="onPosClientTypeChange()" class="border rounded-xl px-3 py-2 text-sm font-semibold">
+            <option value="normal">Cliente normal</option>
+            <option value="wholesale">Mayorista</option>
+            <option value="special">Cliente especial</option>
+          </select>
           <select id="posClientSelect" onchange="renderCart()" class="border rounded-xl px-3 py-2 text-sm">
             <option value="">Cliente general</option>
           </select>
@@ -298,7 +307,7 @@
       </div>
     </section>
 
-    <!-- SECCIÓN 4: PROVEEDORES, CATÁLOGO EDITABLE Y PEDIDOS -->
+    <!-- SECCIÓN 4: PROVEEDORES, CATÁLOGO MÚLTIPLE EDITABLE Y PEDIDOS -->
     <section id="tab-suppliers" class="tab-panel hidden space-y-4">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
@@ -317,19 +326,20 @@
 
         <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
           <div class="flex items-center justify-between mb-3">
-            <h3 id="supItemFormTitle" class="font-bold text-base">Agregar / Editar Catálogo de Proveedor</h3>
+            <h3 id="supItemFormTitle" class="font-bold text-base">Catálogo de Proveedor (Múltiples Productos)</h3>
             <button type="button" onclick="resetSupplierItemForm()" class="text-xs text-slate-600 underline">Limpiar</button>
           </div>
           <form onsubmit="saveSupplierItem(event)" class="space-y-2">
             <input id="supItemEditingId" type="hidden" />
             <select id="supSelect" required class="w-full border rounded-xl px-3 py-2 text-sm"></select>
-            <input id="supProdName" type="text" required placeholder="Producto del proveedor" class="w-full border rounded-xl px-3 py-2 text-sm" />
+            <input id="supProdName" type="text" required placeholder="Producto que ofrece el proveedor" class="w-full border rounded-xl px-3 py-2 text-sm" />
             <div class="grid grid-cols-2 gap-2">
               <input id="supProdPrice" type="number" step="0.01" required placeholder="Precio proveedor (editable)" class="border rounded-xl px-3 py-2 text-sm" />
               <input id="supProdPhotoFile" type="file" accept="image/png,image/jpeg" onchange="handleSupplierPhotoFile(event)" class="border rounded-xl px-2 py-1.5 text-xs bg-white" />
             </div>
-            <button type="submit" class="bg-indigo-600 text-white font-bold rounded-xl px-4 py-2 text-xs">Guardar en Catálogo</button>
+            <button type="submit" class="bg-indigo-600 text-white font-bold rounded-xl px-4 py-2 text-xs">Agregar / Guardar Producto al Catálogo</button>
           </form>
+          <p class="text-[11px] text-slate-500 mt-2">El proveedor seleccionado se mantiene listo para agregar varios productos seguidos.</p>
         </div>
       </div>
 
@@ -360,7 +370,7 @@
 
       <!-- Comparador de Precios entre Proveedores -->
       <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-        <h3 class="font-bold text-base mb-2">Comparador de Precios y Catálogo Editable</h3>
+        <h3 class="font-bold text-base mb-2">Comparador de Precios y Catálogo por Proveedor</h3>
         <p class="text-xs text-slate-500 mb-3">Se resalta el menor precio y puedes editar el precio de cualquier artículo del catálogo.</p>
         <div id="supplierComparisonList" class="space-y-2 text-sm"></div>
       </div>
@@ -390,7 +400,7 @@
       <div id="invoicesList" class="space-y-2 text-sm"></div>
     </section>
 
-    <!-- SECCIÓN 7: GRÁFICAS, APERTURA/CIERRE DE CAJA E INVERSIÓN -->
+    <!-- SECCIÓN 7: GRÁFICAS, APERTURA/CIERRE DE CAJA Y CUADRE -->
     <section id="tab-stats" class="tab-panel hidden space-y-4">
       <!-- Tarjetas de Dinero Invertido y Ganancia Estimada -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -408,29 +418,40 @@
         </div>
       </div>
 
-      <!-- Apertura, Cierre y Cuadre de Caja -->
+      <!-- Apertura, Cuadre y Cierre de Caja -->
       <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
         <div>
-          <h3 class="font-bold text-base">Apertura, Cierre y Cuadre de Caja</h3>
+          <h3 class="font-bold text-base">Apertura, Cuadre y Cierre de Caja</h3>
           <p class="text-xs text-slate-500">Estado actual: <strong id="cashRegisterStatus">Cerrada</strong></p>
-          <p id="cashSummaryDetail" class="text-xs text-slate-700 mt-1 font-medium"></p>
         </div>
 
-        <div id="cashReconciliationBox" class="rounded-xl p-3 bg-indigo-50 border border-indigo-200 text-xs space-y-1">
-          <div class="font-bold text-indigo-900">Cuadre de Efectivo (Sistema vs. Empleado)</div>
-          <div id="reconciliationExpectedText">Efectivo que debe haber según sistema: L 0.00</div>
-          <div id="reconciliationReportedText">Efectivo reportado al cierre: Pendiente</div>
-          <div id="reconciliationDiffText" class="font-bold">Diferencia: L 0.00</div>
+        <div id="cashReconciliationBox" class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 bg-slate-50 border rounded-xl p-3 text-xs">
+          <div>
+            <span class="text-slate-500 block">Efectivo inicial</span>
+            <strong id="recOpeningText" class="text-sm text-slate-900">L 0.00</strong>
+          </div>
+          <div>
+            <span class="text-slate-500 block">Ventas en efectivo (sistema)</span>
+            <strong id="recCashSalesText" class="text-sm text-indigo-700">L 0.00</strong>
+          </div>
+          <div>
+            <span class="text-slate-500 block">Efectivo que debe haber en caja</span>
+            <strong id="recExpectedCashText" class="text-sm text-emerald-700">L 0.00</strong>
+          </div>
+          <div>
+            <span class="text-slate-500 block">Resultado de cuadre al cierre</span>
+            <strong id="recDiffText" class="text-sm text-slate-900">Pendiente de cierre</strong>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div class="flex gap-2 items-center border rounded-xl p-3 bg-slate-50">
-            <input id="openingCashInput" type="number" step="0.01" placeholder="Efectivo inicial del día" class="border rounded-xl px-3 py-2 text-sm flex-1 bg-white" />
+            <input id="openingCashInput" type="number" step="0.01" placeholder="Efectivo inicial con el que abre" class="border rounded-xl px-3 py-2 text-sm flex-1 bg-white" />
             <button type="button" onclick="openCashRegister()" class="bg-emerald-600 text-white font-bold rounded-xl px-4 py-2 text-xs whitespace-nowrap">Abrir Caja</button>
           </div>
           <div class="flex gap-2 items-center border rounded-xl p-3 bg-slate-50">
-            <input id="closingCashInput" type="number" step="0.01" placeholder="Efectivo final al cerrar" class="border rounded-xl px-3 py-2 text-sm flex-1 bg-white" />
-            <button type="button" onclick="closeCashRegister()" class="bg-rose-600 text-white font-bold rounded-xl px-4 py-2 text-xs whitespace-nowrap">Cerrar Caja</button>
+            <input id="closingCashInput" type="number" step="0.01" placeholder="Efectivo contado al cerrar el día" class="border rounded-xl px-3 py-2 text-sm flex-1 bg-white" />
+            <button type="button" onclick="closeCashRegister()" class="bg-rose-600 text-white font-bold rounded-xl px-4 py-2 text-xs whitespace-nowrap">Cerrar y Cuadrar</button>
           </div>
         </div>
       </div>
@@ -597,22 +618,6 @@
     function fmt(amount) {
       const n = Number(amount || 0);
       return `${state.currency} ${n.toFixed(2)}`;
-    }
-
-    function getTotalSalesIncome() {
-      return (state.sales || []).reduce((sum, s) => sum + Number(s.total || 0), 0);
-    }
-
-    function getCashSalesTotal() {
-      return (state.sales || []).reduce((sum, s) => {
-        if (s.method === "Efectivo") return sum + Number(s.total || 0);
-        if (s.method === "Mixto") return sum + Number(s.cashPart || 0);
-        return sum;
-      }, 0);
-    }
-
-    function getExpectedCashInDrawer() {
-      return Number(state.openingCash || 0) + getCashSalesTotal();
     }
 
     function saveLocal() {
@@ -1072,7 +1077,7 @@
       document.getElementById("supProdPrice").value = "";
       document.getElementById("supProdPhotoFile").value = "";
       tempSupplierPhotoData = "";
-      document.getElementById("supItemFormTitle").textContent = "Agregar / Editar Catálogo de Proveedor";
+      document.getElementById("supItemFormTitle").textContent = "Catálogo de Proveedor (Múltiples Productos)";
     };
 
     window.editSupplierItem = (itemId) => {
@@ -1112,9 +1117,17 @@
         });
       }
 
-      resetSupplierItemForm();
+      // Conserva el proveedor seleccionado para facilitar agregar múltiples productos seguidos
+      document.getElementById("supItemEditingId").value = "";
+      document.getElementById("supProdName").value = "";
+      document.getElementById("supProdPrice").value = "";
+      document.getElementById("supProdPhotoFile").value = "";
+      tempSupplierPhotoData = "";
+      document.getElementById("supItemFormTitle").textContent = "Catálogo de Proveedor (Múltiples Productos)";
+
       await pushCloudState();
       renderAll();
+      showBanner(`Producto "${productName}" guardado en catálogo.`);
     };
 
     function openWhatsAppOrder(order, supplier) {
@@ -1199,21 +1212,11 @@
 
     window.closeCashRegister = async () => {
       const finalAmount = parseFloat(document.getElementById("closingCashInput").value);
-      const reportedCash = isNaN(finalAmount) ? 0 : finalAmount;
-      const expectedCash = getExpectedCashInDrawer();
-      const diff = reportedCash - expectedCash;
-
       state.cashOpen = false;
-      state.closingCash = reportedCash;
+      state.closingCash = isNaN(finalAmount) ? 0 : finalAmount;
       await pushCloudState();
       renderAll();
-
-      const diffLabel = diff === 0
-        ? "Cuadre exacto (0.00)"
-        : diff > 0
-          ? `Sobrante de ${fmt(diff)}`
-          : `Faltante de ${fmt(Math.abs(diff))}`;
-      showBanner(`Caja cerrada. Esperado en sistema: ${fmt(expectedCash)} · Efectivo contado: ${fmt(reportedCash)} · ${diffLabel}.`);
+      showBanner(`Caja cerrada con efectivo final de ${fmt(state.closingCash)}.`);
     };
 
     window.saveBusinessSettings = async (e) => {
@@ -1302,13 +1305,46 @@
       showBanner("Usuario guardado.");
     };
 
+    window.onPosClientTypeChange = () => {
+      const type = document.getElementById("posClientType")?.value || "normal";
+      const clientSelect = document.getElementById("posClientSelect");
+      if (type === "special" && clientSelect && !clientSelect.value) {
+        const firstSpecial = state.clients.find((c) => c.id !== "c1");
+        if (firstSpecial) clientSelect.value = firstSpecial.id;
+      }
+      renderPosProducts();
+      recalculateCartPrices();
+    };
+
     function getUnitPriceForProduct(prod) {
+      const clientType = document.getElementById("posClientType")?.value || "normal";
       const clientId = document.getElementById("posClientSelect")?.value || "";
       const client = state.clients.find((c) => c.id === clientId);
+
+      if (clientType === "special") {
+        if (client && client.specialProductId === prod.id && client.specialPrice != null && !isNaN(client.specialPrice)) {
+          return Number(client.specialPrice);
+        }
+        return Number(prod.price || 0);
+      }
+
+      if (clientType === "wholesale" && prod.wholesale != null && !isNaN(prod.wholesale) && Number(prod.wholesale) > 0) {
+        return Number(prod.wholesale);
+      }
+
       if (client && client.specialProductId === prod.id && client.specialPrice != null && !isNaN(client.specialPrice)) {
         return Number(client.specialPrice);
       }
+
       return Number(prod.price || 0);
+    }
+
+    function recalculateCartPrices() {
+      cart = cart.map((item) => {
+        const prod = state.products.find((p) => p.id === item.id);
+        return prod ? { ...item, price: getUnitPriceForProduct(prod) } : item;
+      });
+      renderCart();
     }
 
     window.addToCart = (prodId) => {
@@ -1380,9 +1416,9 @@
       }
       const total = getCartTotal();
       const method = document.getElementById("paymentMethod").value;
+      const clientType = document.getElementById("posClientType").value;
       const clientId = document.getElementById("posClientSelect").value;
       const client = state.clients.find((c) => c.id === clientId);
-      const mixedCash = method === "Mixto" ? (parseFloat(document.getElementById("mixedCash").value) || 0) : 0;
 
       if (method === "Fiado") {
         if (!client || client.id === "c1") {
@@ -1405,13 +1441,13 @@
         }
       }
 
+      const typeLabel = clientType === "wholesale" ? "Mayorista" : clientType === "special" ? "Cliente especial" : "Cliente normal";
       const invoice = {
         id: "FAC-" + Date.now().toString().slice(-6),
         date: new Date().toLocaleString(),
         user: currentSession.name || currentSession.username,
-        client: client ? client.name : "Cliente general",
+        client: client ? `${client.name} (${typeLabel})` : typeLabel,
         method,
-        cashPart: method === "Efectivo" ? total : mixedCash,
         total,
         items: cart.map((i) => ({ ...i }))
       };
@@ -1507,6 +1543,18 @@
       calculateChange();
     }
 
+    function getCashSalesTotal() {
+      return (state.sales || []).reduce((sum, s) => {
+        if (s.method === "Efectivo") return sum + Number(s.total || 0);
+        if (s.method === "Mixto") return sum + Number(s.cashAmount || 0);
+        return sum;
+      }, 0);
+    }
+
+    function getTotalSalesIncome() {
+      return (state.sales || []).reduce((sum, s) => sum + Number(s.total || 0), 0);
+    }
+
     function renderAll() {
       document.getElementById("bizTitle").textContent = state.bizName || "Punto de Venta";
       document.getElementById("bizIdBadge").textContent = state.bizId || "-";
@@ -1524,16 +1572,21 @@
         logoFallback.classList.remove("hidden");
       }
 
-      // Panel en vivo para el administrador
-      const adminLiveBox = document.getElementById("adminLiveSummary");
-      const isAdminRole = isBusinessCreator() || (currentSession.role || "").toLowerCase().includes("admin");
-      if (adminLiveBox) {
-        adminLiveBox.classList.toggle("hidden", !isAdminRole);
-        document.getElementById("liveTotalIncomeText").textContent = fmt(getTotalSalesIncome());
-        document.getElementById("liveCashTotalText").textContent = fmt(getExpectedCashInDrawer());
-        document.getElementById("liveCashStatusText").textContent = state.cashOpen
-          ? `Abierta (Inicial: ${fmt(state.openingCash)})`
-          : `Cerrada${state.closingCash != null ? ` · Final: ${fmt(state.closingCash)}` : ""}`;
+      // Barra en vivo de ingresos y caja para administrador / dueño
+      const isAdminView = isBusinessCreator() || (currentSession.role || "").toLowerCase().includes("admin");
+      const liveBar = document.getElementById("adminLiveSummaryBar");
+      const totalIncome = getTotalSalesIncome();
+      const openingCash = Number(state.openingCash || 0);
+      const cashSales = getCashSalesTotal();
+      const expectedCash = openingCash + cashSales;
+      const totalBoxNow = state.closingCash != null ? Number(state.closingCash) : expectedCash;
+
+      if (liveBar) {
+        liveBar.classList.toggle("hidden", !isAdminView);
+        document.getElementById("liveTotalIncomeText").textContent = fmt(totalIncome);
+        document.getElementById("liveOpeningCashText").textContent = fmt(openingCash);
+        document.getElementById("liveExpectedCashText").textContent = fmt(expectedCash);
+        document.getElementById("liveTotalBoxText").textContent = fmt(totalBoxNow);
       }
 
       const secOptions = state.sections.map((s) => `<option value="${s}">${s}</option>`).join("");
@@ -1603,9 +1656,17 @@
       // Proveedores y selectores de catálogo / pedido
       const supOptions = state.suppliers.map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
       const supSel = document.getElementById("supSelect");
-      if (supSel) supSel.innerHTML = supOptions;
+      if (supSel) {
+        const prevSup = supSel.value;
+        supSel.innerHTML = supOptions;
+        if (prevSup && state.suppliers.some((s) => s.id === prevSup)) supSel.value = prevSup;
+      }
       const ordSupSel = document.getElementById("orderSupplierSelect");
-      if (ordSupSel) ordSupSel.innerHTML = supOptions;
+      if (ordSupSel) {
+        const prevOrdSup = ordSupSel.value;
+        ordSupSel.innerHTML = supOptions;
+        if (prevOrdSup && state.suppliers.some((s) => s.id === prevOrdSup)) ordSupSel.value = prevOrdSup;
+      }
 
       const supListBox = document.getElementById("suppliersListBox");
       if (supListBox) {
@@ -1712,41 +1773,30 @@
       if (profEl) profEl.textContent = fmt(estimatedProfit);
 
       // Apertura, cierre y cuadre de caja
-      const expectedCash = getExpectedCashInDrawer();
-      const cashSales = getCashSalesTotal();
       const cashStatus = document.getElementById("cashRegisterStatus");
-      const cashDetail = document.getElementById("cashSummaryDetail");
-      if (cashStatus) cashStatus.textContent = state.cashOpen ? `Abierta (Inicial: ${fmt(state.openingCash)})` : "Cerrada";
-      if (cashDetail) {
-        const closedText = state.closingCash != null ? ` · Efectivo reportado al cierre: ${fmt(state.closingCash)}` : "";
-        cashDetail.textContent = `Efectivo inicial: ${fmt(state.openingCash)} · Ventas en efectivo: ${fmt(cashSales)}${closedText}`;
-      }
+      if (cashStatus) cashStatus.textContent = state.cashOpen ? `Abierta (Inicial: ${fmt(openingCash)})` : "Cerrada";
 
-      const expEl = document.getElementById("reconciliationExpectedText");
-      const repEl = document.getElementById("reconciliationReportedText");
-      const diffEl = document.getElementById("reconciliationDiffText");
-      if (expEl) expEl.textContent = `Efectivo que debe haber según sistema (Inicial + Efectivo): ${fmt(expectedCash)}`;
-      if (repEl) {
-        repEl.textContent = state.closingCash != null
-          ? `Efectivo contado al cierre: ${fmt(state.closingCash)}`
-          : "Efectivo contado al cierre: Ingresa el monto final y toca Cerrar Caja";
-      }
-      if (diffEl) {
-        if (state.closingCash != null) {
-          const diff = Number(state.closingCash) - expectedCash;
-          if (diff === 0) {
-            diffEl.textContent = `Diferencia: ${fmt(0)} — Caja cuadrada exactamente`;
-            diffEl.className = "font-bold text-emerald-700";
-          } else if (diff > 0) {
-            diffEl.textContent = `Diferencia: Sobrante de ${fmt(diff)}`;
-            diffEl.className = "font-bold text-indigo-700";
-          } else {
-            diffEl.textContent = `Diferencia: Faltante de ${fmt(Math.abs(diff))}`;
-            diffEl.className = "font-bold text-rose-700";
-          }
+      document.getElementById("recOpeningText").textContent = fmt(openingCash);
+      document.getElementById("recCashSalesText").textContent = fmt(cashSales);
+      document.getElementById("recExpectedCashText").textContent = fmt(expectedCash);
+
+      const recDiffEl = document.getElementById("recDiffText");
+      if (recDiffEl) {
+        if (state.closingCash == null) {
+          recDiffEl.textContent = "Pendiente de cierre";
+          recDiffEl.className = "text-sm text-slate-600";
         } else {
-          diffEl.textContent = "Diferencia: Pendiente de cierre";
-          diffEl.className = "font-bold text-slate-700";
+          const diff = Number(state.closingCash) - expectedCash;
+          if (Math.abs(diff) < 0.005) {
+            recDiffEl.textContent = `Cuadre exacto (${fmt(state.closingCash)})`;
+            recDiffEl.className = "text-sm text-emerald-700";
+          } else if (diff > 0) {
+            recDiffEl.textContent = `Sobrante: +${fmt(diff)} (Final: ${fmt(state.closingCash)})`;
+            recDiffEl.className = "text-sm text-indigo-700";
+          } else {
+            recDiffEl.textContent = `Faltante: ${fmt(diff)} (Final: ${fmt(state.closingCash)})`;
+            recDiffEl.className = "text-sm text-rose-700";
+          }
         }
       }
 
