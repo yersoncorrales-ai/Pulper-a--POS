@@ -36,7 +36,7 @@
       <button type="button" onclick="switchAuthTab('reset')" id="tabReset" class="py-2 rounded-lg text-slate-600">Olvidé Clave</button>
     </div>
 
-    <!-- 1. Registrar Negocio por primera vez (con verificación de correo) -->
+    <!-- 1. Registrar Negocio por primera vez -->
     <form id="formRegister" onsubmit="handleRegisterBusiness(event)" class="space-y-3">
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">Nombre del Negocio o Empresa</label>
@@ -133,7 +133,7 @@
       <button type="button" data-tab="suppliers" onclick="openTab('suppliers')" class="nav-btn px-4 py-2.5 rounded-xl bg-white text-slate-700 whitespace-nowrap">Proveedores y Pedidos</button>
       <button type="button" data-tab="missing" onclick="openTab('missing')" class="nav-btn px-4 py-2.5 rounded-xl bg-white text-slate-700 whitespace-nowrap">Faltantes y Sugeridos</button>
       <button type="button" data-tab="invoices" onclick="openTab('invoices')" class="nav-btn px-4 py-2.5 rounded-xl bg-white text-slate-700 whitespace-nowrap">Facturas</button>
-      <button type="button" data-tab="stats" onclick="openTab('stats')" class="nav-btn px-4 py-2.5 rounded-xl bg-white text-slate-700 whitespace-nowrap">Gráficas y Caja</button>
+      <button type="button" data-tab="stats" onclick="openTab('stats')" class="nav-btn px-4 py-2.5 rounded-xl bg-white text-slate-700 whitespace-nowrap">Gráficas, Caja e Inversión</button>
       <button type="button" data-tab="settings" onclick="openTab('settings')" class="nav-btn px-4 py-2.5 rounded-xl bg-white text-slate-700 whitespace-nowrap">Ajustes y Usuarios</button>
     </nav>
 
@@ -209,16 +209,25 @@
       </div>
 
       <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-        <h3 class="font-bold text-base mb-3">Agregar / Actualizar Producto</h3>
+        <div class="flex items-center justify-between mb-3">
+          <h3 id="prodFormTitle" class="font-bold text-base">Agregar / Editar Producto y Stock</h3>
+          <button type="button" onclick="resetProductForm()" class="text-xs font-semibold text-slate-600 underline">Limpiar formulario</button>
+        </div>
         <form onsubmit="saveProduct(event)" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <input id="prodEditingId" type="hidden" />
           <input id="prodName" type="text" required placeholder="Nombre del producto" class="border rounded-xl px-3 py-2 text-sm" />
           <select id="prodSection" class="border rounded-xl px-3 py-2 text-sm"></select>
-          <input id="prodCost" type="number" step="0.01" required placeholder="Precio de costo" class="border rounded-xl px-3 py-2 text-sm cost-field" />
+          <input id="prodCost" type="number" step="0.01" required placeholder="Precio de costo" class="border rounded-xl px-3 py-2 text-sm" />
           <input id="prodPrice" type="number" step="0.01" required placeholder="Precio venta normal" class="border rounded-xl px-3 py-2 text-sm" />
           <input id="prodWholesale" type="number" step="0.01" placeholder="Precio mayorista (opcional)" class="border rounded-xl px-3 py-2 text-sm" />
-          <input id="prodStock" type="number" required placeholder="Stock inicial" class="border rounded-xl px-3 py-2 text-sm" />
-          <input id="prodPhoto" type="text" placeholder="URL de foto o ilustración" class="border rounded-xl px-3 py-2 text-sm" />
-          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl px-4 py-2 text-sm">Guardar Producto</button>
+          <input id="prodStock" type="number" required placeholder="Stock actual / inicial" class="border rounded-xl px-3 py-2 text-sm" />
+          <input id="prodAddStock" type="number" placeholder="+ Agregar al stock (opcional)" class="border rounded-xl px-3 py-2 text-sm bg-emerald-50/60" />
+          <div class="space-y-1">
+            <label class="block text-[11px] font-semibold text-slate-600">Foto (JPG o PNG)</label>
+            <input id="prodPhotoFile" type="file" accept="image/png,image/jpeg" onchange="handleProductPhotoFile(event)" class="w-full border rounded-xl px-2 py-1.5 text-xs bg-white" />
+            <input id="prodPhoto" type="text" placeholder="O pega URL de imagen..." class="w-full border rounded-xl px-2.5 py-1.5 text-xs" />
+          </div>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl px-4 py-2 text-sm md:col-span-4">Guardar Producto</button>
         </form>
       </div>
 
@@ -229,11 +238,11 @@
               <th class="py-2">Foto</th>
               <th class="py-2">Producto</th>
               <th class="py-2">Sección</th>
-              <th class="py-2 cost-col">Precio Costo</th>
+              <th class="py-2">Costo</th>
               <th class="py-2">Precio Venta</th>
               <th class="py-2">Mayorista</th>
               <th class="py-2">Stock</th>
-              <th class="py-2">Acción</th>
+              <th class="py-2">Acciones</th>
             </tr>
           </thead>
           <tbody id="inventoryTableBody" class="divide-y"></tbody>
@@ -273,35 +282,70 @@
       </div>
     </section>
 
-    <!-- SECCIÓN 4: PROVEEDORES, CATÁLOGOS Y COMPARADOR -->
+    <!-- SECCIÓN 4: PROVEEDORES, CATÁLOGO EDITABLE Y PEDIDOS -->
     <section id="tab-suppliers" class="tab-panel hidden space-y-4">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-          <h3 class="font-bold text-base mb-3">Agregar Proveedor</h3>
-          <form onsubmit="addSupplier(event)" class="space-y-2">
+          <div class="flex items-center justify-between mb-3">
+            <h3 id="supFormTitle" class="font-bold text-base">Agregar / Personalizar Proveedor</h3>
+            <button type="button" onclick="resetSupplierForm()" class="text-xs text-slate-600 underline">Nuevo</button>
+          </div>
+          <form onsubmit="saveSupplier(event)" class="space-y-2">
+            <input id="supEditingId" type="hidden" />
             <input id="supName" type="text" required placeholder="Nombre del proveedor" class="w-full border rounded-xl px-3 py-2 text-sm" />
-            <input id="supContact" type="text" placeholder="Contacto / WhatsApp" class="w-full border rounded-xl px-3 py-2 text-sm" />
+            <input id="supContact" type="text" placeholder="WhatsApp / Teléfono (Ej. 50499999999)" class="w-full border rounded-xl px-3 py-2 text-sm" />
             <button type="submit" class="bg-slate-800 text-white font-bold rounded-xl px-4 py-2 text-xs">Guardar Proveedor</button>
           </form>
+          <div id="suppliersListBox" class="mt-3 space-y-1.5 text-xs"></div>
         </div>
 
         <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-          <h3 class="font-bold text-base mb-3">Agregar Producto a Catálogo de Proveedor</h3>
-          <form onsubmit="addSupplierItem(event)" class="space-y-2">
+          <div class="flex items-center justify-between mb-3">
+            <h3 id="supItemFormTitle" class="font-bold text-base">Agregar / Editar Catálogo de Proveedor</h3>
+            <button type="button" onclick="resetSupplierItemForm()" class="text-xs text-slate-600 underline">Limpiar</button>
+          </div>
+          <form onsubmit="saveSupplierItem(event)" class="space-y-2">
+            <input id="supItemEditingId" type="hidden" />
             <select id="supSelect" required class="w-full border rounded-xl px-3 py-2 text-sm"></select>
             <input id="supProdName" type="text" required placeholder="Producto del proveedor" class="w-full border rounded-xl px-3 py-2 text-sm" />
             <div class="grid grid-cols-2 gap-2">
-              <input id="supProdPrice" type="number" step="0.01" required placeholder="Precio proveedor" class="border rounded-xl px-3 py-2 text-sm" />
-              <input id="supProdPhoto" type="text" placeholder="URL foto o ilustración" class="border rounded-xl px-3 py-2 text-sm" />
+              <input id="supProdPrice" type="number" step="0.01" required placeholder="Precio proveedor (editable)" class="border rounded-xl px-3 py-2 text-sm" />
+              <input id="supProdPhotoFile" type="file" accept="image/png,image/jpeg" onchange="handleSupplierPhotoFile(event)" class="border rounded-xl px-2 py-1.5 text-xs bg-white" />
             </div>
-            <button type="submit" class="bg-indigo-600 text-white font-bold rounded-xl px-4 py-2 text-xs">Agregar al Catálogo</button>
+            <button type="submit" class="bg-indigo-600 text-white font-bold rounded-xl px-4 py-2 text-xs">Guardar en Catálogo</button>
           </form>
         </div>
       </div>
 
+      <!-- Crear Nuevo Pedido Personalizado -->
       <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-        <h3 class="font-bold text-base mb-2">Comparador de Precios entre Proveedores y Orden de Administración</h3>
-        <p class="text-xs text-slate-500 mb-3">Se resalta automáticamente el proveedor con menor precio para el mismo producto.</p>
+        <h3 class="font-bold text-base mb-3">Nuevo Pedido Personalizado</h3>
+        <form onsubmit="createCustomOrder(event)" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+          <select id="orderSupplierSelect" required class="border rounded-xl px-3 py-2 text-sm"></select>
+          <input id="orderProdName" type="text" required placeholder="Producto a pedir" class="border rounded-xl px-3 py-2 text-sm" />
+          <input id="orderQty" type="number" min="1" required placeholder="Cantidad" class="border rounded-xl px-3 py-2 text-sm" />
+          <input id="orderUnitPrice" type="number" step="0.01" required placeholder="Precio unitario acordado" class="border rounded-xl px-3 py-2 text-sm" />
+          <input id="orderNotes" type="text" placeholder="Nota personalizada (opcional)" class="border rounded-xl px-3 py-2 text-sm" />
+          <div class="flex flex-wrap gap-2 md:col-span-5">
+            <button type="submit" name="orderAction" value="save_only" class="bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl px-4 py-2 text-xs">
+              Registrar Pedido (No enviar al proveedor)
+            </button>
+            <button type="submit" name="orderAction" value="whatsapp" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-4 py-2 text-xs">
+              Registrar y Enviar por WhatsApp
+            </button>
+          </div>
+        </form>
+
+        <div class="mt-4">
+          <h4 class="font-bold text-sm mb-2">Pedidos Registrados</h4>
+          <div id="ordersHistoryList" class="space-y-2 text-xs"></div>
+        </div>
+      </div>
+
+      <!-- Comparador de Precios entre Proveedores -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+        <h3 class="font-bold text-base mb-2">Comparador de Precios y Catálogo Editable</h3>
+        <p class="text-xs text-slate-500 mb-3">Se resalta el menor precio y puedes editar el precio de cualquier artículo del catálogo.</p>
         <div id="supplierComparisonList" class="space-y-2 text-sm"></div>
       </div>
     </section>
@@ -319,7 +363,7 @@
 
       <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
         <h3 class="font-bold text-base mb-3">Recomendado Futuros Pedidos</h3>
-        <p class="text-xs text-slate-500 mb-3">Calculado según productos con stock bajo, alta rotación y artículos solicitados sin existencia.</p>
+        <p class="text-xs text-slate-500 mb-3">Calculado según stock bajo, rotación y artículos solicitados sin existencia.</p>
         <ul id="recommendedOrdersList" class="space-y-2 text-sm"></ul>
       </div>
     </section>
@@ -330,17 +374,40 @@
       <div id="invoicesList" class="space-y-2 text-sm"></div>
     </section>
 
-    <!-- SECCIÓN 7: GRÁFICAS DE VENTAS Y CAJA -->
+    <!-- SECCIÓN 7: GRÁFICAS, APERTURA/CIERRE DE CAJA E INVERSIÓN -->
     <section id="tab-stats" class="tab-panel hidden space-y-4">
-      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <!-- Tarjetas de Dinero Invertido y Ganancia Estimada -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500">Dinero Invertido en Inventario (Costo × Stock)</div>
+          <div id="totalInvestedText" class="text-xl font-bold text-indigo-700 mt-1">L 0.00</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500">Valor Total en Venta del Stock Actual</div>
+          <div id="totalRetailValueText" class="text-xl font-bold text-slate-900 mt-1">L 0.00</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500">Ganancia Estimada al Vender Todo</div>
+          <div id="estimatedProfitText" class="text-xl font-bold text-emerald-700 mt-1">L 0.00</div>
+        </div>
+      </div>
+
+      <!-- Apertura y Cierre de Caja -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
         <div>
           <h3 class="font-bold text-base">Apertura y Cierre de Caja</h3>
-          <p class="text-xs text-slate-500">Estado actual: <strong id="cashRegisterStatus">Cerrada</strong> · Cada día 1 del mes se archiva y limpia ventas automáticamente tras respaldar en Excel.</p>
+          <p class="text-xs text-slate-500">Estado actual: <strong id="cashRegisterStatus">Cerrada</strong></p>
+          <p id="cashSummaryDetail" class="text-xs text-slate-600 mt-1"></p>
         </div>
-        <div class="flex gap-2">
-          <input id="openingCashInput" type="number" step="0.01" placeholder="Monto inicial" class="border rounded-xl px-3 py-2 text-sm w-32" />
-          <button type="button" onclick="openCashRegister()" class="bg-emerald-600 text-white font-bold rounded-xl px-4 py-2 text-xs">Abrir Caja</button>
-          <button type="button" onclick="closeCashRegister()" class="bg-rose-600 text-white font-bold rounded-xl px-4 py-2 text-xs">Cerrar Caja</button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="flex gap-2 items-center border rounded-xl p-3 bg-slate-50">
+            <input id="openingCashInput" type="number" step="0.01" placeholder="Efectivo inicial del día" class="border rounded-xl px-3 py-2 text-sm flex-1 bg-white" />
+            <button type="button" onclick="openCashRegister()" class="bg-emerald-600 text-white font-bold rounded-xl px-4 py-2 text-xs whitespace-nowrap">Abrir Caja</button>
+          </div>
+          <div class="flex gap-2 items-center border rounded-xl p-3 bg-slate-50">
+            <input id="closingCashInput" type="number" step="0.01" placeholder="Efectivo final al cerrar" class="border rounded-xl px-3 py-2 text-sm flex-1 bg-white" />
+            <button type="button" onclick="closeCashRegister()" class="bg-rose-600 text-white font-bold rounded-xl px-4 py-2 text-xs whitespace-nowrap">Cerrar Caja</button>
+          </div>
         </div>
       </div>
 
@@ -376,14 +443,23 @@
       </div>
 
       <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-        <h3 class="font-bold text-base mb-3">Usuarios y Roles del Negocio (Sin Límite)</h3>
-        <form onsubmit="addTeamUser(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
-          <input id="empName" type="text" required placeholder="Nombre del empleado" class="border rounded-xl px-3 py-2 text-sm" />
-          <input id="empUser" type="text" required placeholder="Usuario / correo" class="border rounded-xl px-3 py-2 text-sm" />
-          <input id="empPass" type="password" required placeholder="Contraseña" class="border rounded-xl px-3 py-2 text-sm" />
-          <input id="empRole" type="text" required placeholder="Rol (Ej. Administrador, Auditor, Colaborador)" class="border rounded-xl px-3 py-2 text-sm" />
-          <button type="submit" class="bg-slate-800 text-white font-bold rounded-xl px-4 py-2 text-sm sm:col-span-4">+ Crear Usuario con Rol</button>
-        </form>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 id="empFormTitle" class="font-bold text-base">Usuarios y Roles del Negocio</h3>
+          <span id="ownerOnlyBadge" class="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-semibold"></span>
+        </div>
+        <div id="employeeManagerPanel">
+          <form onsubmit="saveTeamUser(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
+            <input id="empEditingId" type="hidden" />
+            <input id="empName" type="text" required placeholder="Nombre del empleado" class="border rounded-xl px-3 py-2 text-sm" />
+            <input id="empUser" type="text" required placeholder="Usuario sin @ (ej. kelvin.nunez)" class="border rounded-xl px-3 py-2 text-sm" />
+            <input id="empPass" type="text" placeholder="Contraseña (mín. 6 caracteres)" class="border rounded-xl px-3 py-2 text-sm" />
+            <input id="empRole" type="text" required placeholder="Rol (Ej. Cajero, Auditor, Colaborador)" class="border rounded-xl px-3 py-2 text-sm" />
+            <div class="flex gap-2 sm:col-span-4">
+              <button type="submit" class="bg-slate-800 text-white font-bold rounded-xl px-4 py-2 text-sm">Guardar Usuario</button>
+              <button type="button" onclick="resetEmployeeForm()" class="bg-slate-100 text-slate-700 font-semibold rounded-xl px-3 py-2 text-sm">Cancelar</button>
+            </div>
+          </form>
+        </div>
         <ul id="teamUsersList" class="divide-y text-sm"></ul>
       </div>
     </section>
@@ -427,21 +503,23 @@
 
     let state = {
       bizId: "",
+      ownerEmail: "",
       bizName: "Punto de Venta",
       bizLogo: "",
       currency: "L",
       cashOpen: false,
       openingCash: 0,
+      closingCash: null,
       sections: ["General", "Bebidas", "Abarrotes", "Snacks"],
       products: [],
       clients: [],
       suppliers: [],
       supplierCatalog: [],
+      orders: [],
       missingItems: [],
       sales: [],
       invoices: [],
-      users: [],
-      lastAutoCleanMonth: ""
+      users: []
     };
 
     let currentSession = { name: "", username: "", role: "Administrador", email: "" };
@@ -449,15 +527,27 @@
     let chartTop = null;
     let chartLow = null;
     let unsubscribeDoc = null;
+    let tempProductPhotoData = "";
+    let tempSupplierPhotoData = "";
+
+    function isBusinessCreator() {
+      const owner = (state.ownerEmail || "").trim().toLowerCase();
+      const sessionEmail = (currentSession.email || "").trim().toLowerCase();
+      const sessionUser = (currentSession.username || "").trim().toLowerCase();
+      if (!owner) return (currentSession.role || "").toLowerCase() === "administrador";
+      return sessionEmail === owner || sessionUser === owner;
+    }
 
     function defaultState(bizId, bizName, ownerName, email) {
       return {
         bizId,
+        ownerEmail: email || "",
         bizName,
         bizLogo: "",
         currency: "L",
         cashOpen: false,
         openingCash: 0,
+        closingCash: null,
         sections: ["General", "Bebidas", "Abarrotes", "Snacks"],
         products: [
           { id: "p1", name: "Agua Purificada 1L", section: "Bebidas", cost: 8, price: 15, wholesale: 12, stock: 25, sold: 0, photo: "" },
@@ -470,13 +560,13 @@
           { id: "s1", name: "Distribuidora Central", contact: "" }
         ],
         supplierCatalog: [],
+        orders: [],
         missingItems: [],
         sales: [],
         invoices: [],
         users: [
-          { id: "u1", name: ownerName || "Administrador", username: email, password: "", role: "Administrador", email }
-        ],
-        lastAutoCleanMonth: ""
+          { id: "u1", name: ownerName || "Administrador", username: email, password: "", role: "Administrador", email, isOwner: true }
+        ]
       };
     }
 
@@ -568,6 +658,50 @@
       renderAll();
     }
 
+    function fileToCompressedDataUrl(file, maxSize = 480) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let w = img.width;
+            let h = img.height;
+            if (w > h && w > maxSize) {
+              h = Math.round((h * maxSize) / w);
+              w = maxSize;
+            } else if (h >= w && h > maxSize) {
+              w = Math.round((w * maxSize) / h);
+              h = maxSize;
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, w, h);
+            const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
+            resolve(canvas.toDataURL(mime, 0.82));
+          };
+          img.onerror = reject;
+          img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    window.handleProductPhotoFile = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      tempProductPhotoData = await fileToCompressedDataUrl(file, 480);
+      document.getElementById("prodPhoto").value = tempProductPhotoData;
+    };
+
+    window.handleSupplierPhotoFile = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      tempSupplierPhotoData = await fileToCompressedDataUrl(file, 360);
+    };
+
     window.switchAuthTab = (tab) => {
       ["register", "login", "reset"].forEach((t) => {
         document.getElementById("form" + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle("hidden", t !== tab);
@@ -600,19 +734,10 @@
         currentSession = { name: ownerName, username: email, role: "Administrador", email };
         await setDoc(doc(db, "businesses", bizId), state);
         saveLocal();
-        msg.textContent = `Cuenta creada. Se envió un correo de verificación a ${email} (revisa también Spam). ID de negocio: ${bizId}`;
-        enterApp(`Negocio "${bizName}" registrado. ID: ${bizId}. Verifica tu correo para validar la cuenta.`);
+        msg.textContent = `Cuenta creada. Se envió verificación a ${email}. ID de negocio: ${bizId}`;
+        enterApp(`Negocio "${bizName}" registrado. ID: ${bizId}.`);
       } catch (err) {
-        const code = err.code || "";
-        if (code === "auth/email-already-in-use") {
-          msg.textContent = "Ese correo ya está registrado. Cambia a 'Ingresar Usuario' o usa 'Olvidé Clave'.";
-        } else if (code === "auth/weak-password") {
-          msg.textContent = "La contraseña debe tener al menos 6 caracteres.";
-        } else if (code === "auth/invalid-email") {
-          msg.textContent = "El correo electrónico no tiene un formato válido.";
-        } else {
-          msg.textContent = "Error al registrar: " + (err.message || code);
-        }
+        msg.textContent = "Error al registrar: " + (err.message || err.code);
       }
     };
 
@@ -737,41 +862,93 @@
       renderAll();
     };
 
+    window.resetProductForm = () => {
+      document.getElementById("prodEditingId").value = "";
+      document.getElementById("prodName").value = "";
+      document.getElementById("prodCost").value = "";
+      document.getElementById("prodPrice").value = "";
+      document.getElementById("prodWholesale").value = "";
+      document.getElementById("prodStock").value = "";
+      document.getElementById("prodAddStock").value = "";
+      document.getElementById("prodPhoto").value = "";
+      document.getElementById("prodPhotoFile").value = "";
+      tempProductPhotoData = "";
+      document.getElementById("prodFormTitle").textContent = "Agregar / Editar Producto y Stock";
+    };
+
+    window.editProduct = (prodId) => {
+      const p = state.products.find((item) => item.id === prodId);
+      if (!p) return;
+      document.getElementById("prodEditingId").value = p.id;
+      document.getElementById("prodName").value = p.name;
+      document.getElementById("prodSection").value = p.section || "General";
+      document.getElementById("prodCost").value = p.cost ?? 0;
+      document.getElementById("prodPrice").value = p.price ?? 0;
+      document.getElementById("prodWholesale").value = p.wholesale ?? "";
+      document.getElementById("prodStock").value = p.stock ?? 0;
+      document.getElementById("prodAddStock").value = "";
+      document.getElementById("prodPhoto").value = p.photo || "";
+      tempProductPhotoData = p.photo || "";
+      document.getElementById("prodFormTitle").textContent = `Editando: ${p.name}`;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
     window.saveProduct = async (e) => {
       e.preventDefault();
+      const editingId = document.getElementById("prodEditingId").value;
       const name = document.getElementById("prodName").value.trim();
       const section = document.getElementById("prodSection").value || "General";
       const cost = parseFloat(document.getElementById("prodCost").value) || 0;
       const price = parseFloat(document.getElementById("prodPrice").value) || 0;
       const wholesaleRaw = document.getElementById("prodWholesale").value;
-      const wholesale = wholesaleRaw ? parseFloat(wholesaleRaw) : null;
-      const stock = parseInt(document.getElementById("prodStock").value, 10) || 0;
-      const photo = document.getElementById("prodPhoto").value.trim();
+      const wholesale = wholesaleRaw !== "" ? parseFloat(wholesaleRaw) : null;
+      const baseStock = parseInt(document.getElementById("prodStock").value, 10) || 0;
+      const addStock = parseInt(document.getElementById("prodAddStock").value, 10) || 0;
+      const finalStock = Math.max(0, baseStock + addStock);
+      const photo = tempProductPhotoData || document.getElementById("prodPhoto").value.trim();
 
-      const existing = state.products.find((p) => p.name.toLowerCase() === name.toLowerCase());
-      if (existing) {
-        existing.section = section;
-        existing.cost = cost;
-        existing.price = price;
-        existing.wholesale = wholesale;
-        existing.stock = stock;
-        if (photo) existing.photo = photo;
+      if (editingId) {
+        const idx = state.products.findIndex((p) => p.id === editingId);
+        if (idx !== -1) {
+          state.products[idx] = {
+            ...state.products[idx],
+            name,
+            section,
+            cost,
+            price,
+            wholesale,
+            stock: finalStock,
+            photo: photo || state.products[idx].photo || ""
+          };
+        }
       } else {
-        state.products.push({
-          id: "p_" + Date.now(),
-          name,
-          section,
-          cost,
-          price,
-          wholesale,
-          stock,
-          sold: 0,
-          photo
-        });
+        const existing = state.products.find((p) => p.name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+          existing.section = section;
+          existing.cost = cost;
+          existing.price = price;
+          existing.wholesale = wholesale;
+          existing.stock = finalStock;
+          if (photo) existing.photo = photo;
+        } else {
+          state.products.push({
+            id: "p_" + Date.now(),
+            name,
+            section,
+            cost,
+            price,
+            wholesale,
+            stock: finalStock,
+            sold: 0,
+            photo
+          });
+        }
       }
-      e.target.reset();
+
+      resetProductForm();
       await pushCloudState();
       renderAll();
+      showBanner(`Producto "${name}" guardado (Stock: ${finalStock}).`);
     };
 
     window.deleteProduct = async (id) => {
@@ -814,33 +991,150 @@
       renderAll();
     };
 
-    window.addSupplier = async (e) => {
+    window.resetSupplierForm = () => {
+      document.getElementById("supEditingId").value = "";
+      document.getElementById("supName").value = "";
+      document.getElementById("supContact").value = "";
+      document.getElementById("supFormTitle").textContent = "Agregar / Personalizar Proveedor";
+    };
+
+    window.editSupplier = (supId) => {
+      const s = state.suppliers.find((item) => item.id === supId);
+      if (!s) return;
+      document.getElementById("supEditingId").value = s.id;
+      document.getElementById("supName").value = s.name;
+      document.getElementById("supContact").value = s.contact || "";
+      document.getElementById("supFormTitle").textContent = `Editando proveedor: ${s.name}`;
+    };
+
+    window.saveSupplier = async (e) => {
       e.preventDefault();
+      const editingId = document.getElementById("supEditingId").value;
       const name = document.getElementById("supName").value.trim();
       const contact = document.getElementById("supContact").value.trim();
-      state.suppliers.push({ id: "s_" + Date.now(), name, contact });
-      e.target.reset();
+      if (editingId) {
+        const s = state.suppliers.find((item) => item.id === editingId);
+        if (s) {
+          s.name = name;
+          s.contact = contact;
+        }
+      } else {
+        state.suppliers.push({ id: "s_" + Date.now(), name, contact });
+      }
+      resetSupplierForm();
       await pushCloudState();
       renderAll();
     };
 
-    window.addSupplierItem = async (e) => {
+    window.resetSupplierItemForm = () => {
+      document.getElementById("supItemEditingId").value = "";
+      document.getElementById("supProdName").value = "";
+      document.getElementById("supProdPrice").value = "";
+      document.getElementById("supProdPhotoFile").value = "";
+      tempSupplierPhotoData = "";
+      document.getElementById("supItemFormTitle").textContent = "Agregar / Editar Catálogo de Proveedor";
+    };
+
+    window.editSupplierItem = (itemId) => {
+      const item = state.supplierCatalog.find((x) => x.id === itemId);
+      if (!item) return;
+      document.getElementById("supItemEditingId").value = item.id;
+      document.getElementById("supSelect").value = item.supplierId;
+      document.getElementById("supProdName").value = item.productName;
+      document.getElementById("supProdPrice").value = item.price;
+      tempSupplierPhotoData = item.photo || "";
+      document.getElementById("supItemFormTitle").textContent = `Editando catálogo: ${item.productName}`;
+    };
+
+    window.saveSupplierItem = async (e) => {
       e.preventDefault();
+      const editingId = document.getElementById("supItemEditingId").value;
       const supplierId = document.getElementById("supSelect").value;
       const productName = document.getElementById("supProdName").value.trim();
       const price = parseFloat(document.getElementById("supProdPrice").value) || 0;
-      const photo = document.getElementById("supProdPhoto").value.trim();
       if (!supplierId || !productName) return;
-      state.supplierCatalog.push({
-        id: "si_" + Date.now(),
+
+      if (editingId) {
+        const item = state.supplierCatalog.find((x) => x.id === editingId);
+        if (item) {
+          item.supplierId = supplierId;
+          item.productName = productName;
+          item.price = price;
+          if (tempSupplierPhotoData) item.photo = tempSupplierPhotoData;
+        }
+      } else {
+        state.supplierCatalog.push({
+          id: "si_" + Date.now(),
+          supplierId,
+          productName,
+          price,
+          photo: tempSupplierPhotoData
+        });
+      }
+
+      resetSupplierItemForm();
+      await pushCloudState();
+      renderAll();
+    };
+
+    function openWhatsAppOrder(order, supplier) {
+      const cleanPhone = (supplier?.contact || "").replace(/\D/g, "");
+      const text = encodeURIComponent(
+        `Hola ${supplier?.name || "Proveedor"}, pedido de *${state.bizName}*:\n` +
+        `• Producto: ${order.productName}\n` +
+        `• Cantidad: ${order.qty}\n` +
+        `• Precio acordado: ${fmt(order.unitPrice)}\n` +
+        `• Total pedido: ${fmt(order.total)}` +
+        (order.notes ? `\n• Nota: ${order.notes}` : "")
+      );
+      const url = cleanPhone ? `https://wa.me/${cleanPhone}?text=${text}` : `https://wa.me/?text=${text}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+    window.createCustomOrder = async (e) => {
+      e.preventDefault();
+      const action = e.submitter?.value || "save_only";
+      const supplierId = document.getElementById("orderSupplierSelect").value;
+      const productName = document.getElementById("orderProdName").value.trim();
+      const qty = parseInt(document.getElementById("orderQty").value, 10) || 1;
+      const unitPrice = parseFloat(document.getElementById("orderUnitPrice").value) || 0;
+      const notes = document.getElementById("orderNotes").value.trim();
+      const supplier = state.suppliers.find((s) => s.id === supplierId);
+
+      const order = {
+        id: "PED-" + Date.now().toString().slice(-5),
+        date: new Date().toLocaleString(),
         supplierId,
+        supplierName: supplier ? supplier.name : "Proveedor",
         productName,
-        price,
-        photo
-      });
+        qty,
+        unitPrice,
+        total: qty * unitPrice,
+        notes,
+        status: action === "whatsapp" ? "Enviado por WhatsApp" : "Registrado (sin enviar)"
+      };
+
+      state.orders = state.orders || [];
+      state.orders.unshift(order);
       e.target.reset();
       await pushCloudState();
       renderAll();
+
+      if (action === "whatsapp") {
+        openWhatsAppOrder(order, supplier);
+      } else {
+        showBanner(`Pedido ${order.id} guardado sin enviar al proveedor.`);
+      }
+    };
+
+    window.sendSavedOrderWhatsApp = (orderId) => {
+      const order = (state.orders || []).find((o) => o.id === orderId);
+      if (!order) return;
+      const supplier = state.suppliers.find((s) => s.id === order.supplierId);
+      order.status = "Enviado por WhatsApp";
+      pushCloudState();
+      renderAll();
+      openWhatsAppOrder(order, supplier);
     };
 
     window.addMissingItem = async (e) => {
@@ -857,16 +1151,19 @@
       const amount = parseFloat(document.getElementById("openingCashInput").value) || 0;
       state.cashOpen = true;
       state.openingCash = amount;
+      state.closingCash = null;
       await pushCloudState();
       renderAll();
-      showBanner(`Caja abierta con ${fmt(amount)}.`);
+      showBanner(`Caja abierta con efectivo inicial de ${fmt(amount)}.`);
     };
 
     window.closeCashRegister = async () => {
+      const finalAmount = parseFloat(document.getElementById("closingCashInput").value);
       state.cashOpen = false;
+      state.closingCash = isNaN(finalAmount) ? 0 : finalAmount;
       await pushCloudState();
       renderAll();
-      showBanner("Caja cerrada correctamente.");
+      showBanner(`Caja cerrada con efectivo final de ${fmt(state.closingCash)}.`);
     };
 
     window.saveBusinessSettings = async (e) => {
@@ -879,23 +1176,80 @@
       showBanner("Ajustes del negocio guardados.");
     };
 
-    window.addTeamUser = async (e) => {
+    window.resetEmployeeForm = () => {
+      document.getElementById("empEditingId").value = "";
+      document.getElementById("empName").value = "";
+      document.getElementById("empUser").value = "";
+      document.getElementById("empPass").value = "";
+      document.getElementById("empRole").value = "";
+      document.getElementById("empFormTitle").textContent = "Usuarios y Roles del Negocio";
+    };
+
+    window.editTeamUser = (userId) => {
+      if (!isBusinessCreator()) {
+        showBanner("Solo el perfil que creó la empresa puede editar empleados.");
+        return;
+      }
+      const u = (state.users || []).find((item) => item.id === userId);
+      if (!u) return;
+      document.getElementById("empEditingId").value = u.id;
+      document.getElementById("empName").value = u.name;
+      document.getElementById("empUser").value = u.username;
+      document.getElementById("empPass").value = u.password || "";
+      document.getElementById("empRole").value = u.role || "Colaborador";
+      document.getElementById("empFormTitle").textContent = `Editando usuario: ${u.name}`;
+    };
+
+    window.deleteTeamUser = async (userId) => {
+      if (!isBusinessCreator()) {
+        showBanner("Solo el perfil que creó la empresa puede eliminar empleados.");
+        return;
+      }
+      if ((state.users || []).length <= 1) {
+        showBanner("Debe quedar al menos un usuario en el negocio.");
+        return;
+      }
+      state.users = (state.users || []).filter((u) => u.id !== userId);
+      await pushCloudState();
+      renderAll();
+      showBanner("Usuario eliminado.");
+    };
+
+    window.saveTeamUser = async (e) => {
       e.preventDefault();
+      if (!isBusinessCreator()) {
+        showBanner("Solo el perfil que creó la empresa puede agregar o editar empleados.");
+        return;
+      }
+      const editingId = document.getElementById("empEditingId").value;
       const name = document.getElementById("empName").value.trim();
       const username = document.getElementById("empUser").value.trim();
       const password = document.getElementById("empPass").value;
       const role = document.getElementById("empRole").value.trim() || "Colaborador";
-      state.users.push({
-        id: "u_" + Date.now(),
-        name,
-        username,
-        password,
-        role,
-        email: username.includes("@") ? username : ""
-      });
-      e.target.reset();
+
+      if (editingId) {
+        const u = (state.users || []).find((item) => item.id === editingId);
+        if (u) {
+          u.name = name;
+          u.username = username;
+          if (password) u.password = password;
+          u.role = role;
+        }
+      } else {
+        state.users.push({
+          id: "u_" + Date.now(),
+          name,
+          username,
+          password,
+          role,
+          email: username.includes("@") ? username : ""
+        });
+      }
+
+      resetEmployeeForm();
       await pushCloudState();
       renderAll();
+      showBanner("Usuario guardado.");
     };
 
     function getUnitPriceForProduct(prod) {
@@ -1145,6 +1499,7 @@
       renderPosProducts();
       renderCart();
 
+      // Inventario + editar stock
       const invBody = document.getElementById("inventoryTableBody");
       if (invBody) {
         invBody.innerHTML = state.products.map((p) => `
@@ -1152,15 +1507,19 @@
             <td class="py-2">${p.photo ? `<img src="${p.photo}" class="w-10 h-10 rounded object-cover" />` : "-"}</td>
             <td class="py-2 font-semibold">${p.name}</td>
             <td class="py-2">${p.section || "General"}</td>
-            <td class="py-2 cost-col">${fmt(p.cost)}</td>
+            <td class="py-2">${fmt(p.cost)}</td>
             <td class="py-2 font-bold text-emerald-700">${fmt(p.price)}</td>
             <td class="py-2">${p.wholesale != null ? fmt(p.wholesale) : "-"}</td>
-            <td class="py-2">${p.stock}</td>
-            <td class="py-2"><button type="button" onclick="deleteProduct('${p.id}')" class="text-rose-600 text-xs font-bold">Eliminar</button></td>
+            <td class="py-2 font-bold">${p.stock}</td>
+            <td class="py-2 space-x-2 whitespace-nowrap">
+              <button type="button" onclick="editProduct('${p.id}')" class="text-indigo-600 text-xs font-bold">Editar / Stock</button>
+              <button type="button" onclick="deleteProduct('${p.id}')" class="text-rose-600 text-xs font-bold">Eliminar</button>
+            </td>
           </tr>
         `).join("");
       }
 
+      // Clientes
       const cliBody = document.getElementById("clientsTableBody");
       if (cliBody) {
         cliBody.innerHTML = state.clients.map((c) => {
@@ -1177,11 +1536,41 @@
         }).join("");
       }
 
+      // Proveedores y selectores de catálogo / pedido
+      const supOptions = state.suppliers.map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
       const supSel = document.getElementById("supSelect");
-      if (supSel) {
-        supSel.innerHTML = state.suppliers.map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
+      if (supSel) supSel.innerHTML = supOptions;
+      const ordSupSel = document.getElementById("orderSupplierSelect");
+      if (ordSupSel) ordSupSel.innerHTML = supOptions;
+
+      const supListBox = document.getElementById("suppliersListBox");
+      if (supListBox) {
+        supListBox.innerHTML = state.suppliers.map((s) => `
+          <div class="flex items-center justify-between bg-slate-50 border rounded-xl px-3 py-2">
+            <div>
+              <span class="font-bold">${s.name}</span>
+              <span class="text-slate-500">· ${s.contact || "Sin contacto"}</span>
+            </div>
+            <button type="button" onclick="editSupplier('${s.id}')" class="text-indigo-600 font-bold">Editar</button>
+          </div>
+        `).join("");
       }
 
+      // Pedidos registrados
+      const ordersBox = document.getElementById("ordersHistoryList");
+      if (ordersBox) {
+        ordersBox.innerHTML = (state.orders || []).map((o) => `
+          <div class="border rounded-xl p-3 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div class="font-bold">${o.id} · ${o.productName} (x${o.qty}) · ${o.supplierName}</div>
+              <div class="text-slate-500">${o.date} · Total: <strong>${fmt(o.total)}</strong> · Estado: <strong>${o.status}</strong>${o.notes ? ` · Nota: ${o.notes}` : ""}</div>
+            </div>
+            <button type="button" onclick="sendSavedOrderWhatsApp('${o.id}')" class="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-lg">Enviar WhatsApp</button>
+          </div>
+        `).join("") || `<p class="text-slate-400">No hay pedidos registrados todavía.</p>`;
+      }
+
+      // Comparador y catálogo editable
       const compBox = document.getElementById("supplierComparisonList");
       if (compBox) {
         const grouped = {};
@@ -1197,11 +1586,14 @@
           return `
             <div class="border rounded-xl p-3 bg-slate-50">
               <div class="font-bold mb-1">${list[0].productName}</div>
-              <div class="space-y-1 text-xs">
+              <div class="space-y-1.5 text-xs">
                 ${list.map((x) => `
-                  <div class="flex justify-between ${Number(x.price) === minPrice ? "text-emerald-700 font-bold" : "text-slate-600"}">
+                  <div class="flex flex-wrap items-center justify-between gap-2 ${Number(x.price) === minPrice ? "text-emerald-700 font-bold" : "text-slate-600"}">
                     <span>${x.supplierName} ${Number(x.price) === minPrice ? "(Menor precio)" : ""}</span>
-                    <span>${fmt(x.price)}</span>
+                    <div class="flex items-center gap-2">
+                      <span>${fmt(x.price)}</span>
+                      <button type="button" onclick="editSupplierItem('${x.id}')" class="text-indigo-600 font-bold underline">Editar precio</button>
+                    </div>
                   </div>
                 `).join("")}
               </div>
@@ -1210,6 +1602,7 @@
         }).join("") || `<p class="text-xs text-slate-400">Aún no hay productos agregados al catálogo de proveedores.</p>`;
       }
 
+      // Faltantes y sugeridos
       const missList = document.getElementById("missingList");
       if (missList) {
         missList.innerHTML = state.missingItems.map((m) => `
@@ -1228,6 +1621,7 @@
         recList.innerHTML = combined.map((txt) => `<li class="bg-amber-50 border border-amber-200 text-amber-900 p-2.5 rounded-xl text-xs font-semibold">${txt}</li>`).join("") || `<p class="text-xs text-slate-400">Todo el inventario está cubierto.</p>`;
       }
 
+      // Facturas
       const invList = document.getElementById("invoicesList");
       if (invList) {
         invList.innerHTML = state.invoices.map((f) => `
@@ -1241,22 +1635,59 @@
         `).join("") || `<p class="text-xs text-slate-400">No hay facturas registradas todavía.</p>`;
       }
 
-      const cashStatus = document.getElementById("cashRegisterStatus");
-      if (cashStatus) cashStatus.textContent = state.cashOpen ? `Abierta (Inicial: ${fmt(state.openingCash)})` : "Cerrada";
+      // Inversión y ganancia estimada
+      const totalInvested = state.products.reduce((acc, p) => acc + (Number(p.cost || 0) * Number(p.stock || 0)), 0);
+      const totalRetail = state.products.reduce((acc, p) => acc + (Number(p.price || 0) * Number(p.stock || 0)), 0);
+      const estimatedProfit = totalRetail - totalInvested;
 
+      const invEl = document.getElementById("totalInvestedText");
+      const retEl = document.getElementById("totalRetailValueText");
+      const profEl = document.getElementById("estimatedProfitText");
+      if (invEl) invEl.textContent = fmt(totalInvested);
+      if (retEl) retEl.textContent = fmt(totalRetail);
+      if (profEl) profEl.textContent = fmt(estimatedProfit);
+
+      // Apertura y cierre de caja
+      const cashStatus = document.getElementById("cashRegisterStatus");
+      const cashDetail = document.getElementById("cashSummaryDetail");
+      if (cashStatus) cashStatus.textContent = state.cashOpen ? `Abierta (Inicial: ${fmt(state.openingCash)})` : "Cerrada";
+      if (cashDetail) {
+        const closedText = state.closingCash != null ? ` · Efectivo final registrado: ${fmt(state.closingCash)}` : "";
+        cashDetail.textContent = `Efectivo inicial: ${fmt(state.openingCash)}${closedText}`;
+      }
+
+      // Ajustes y usuarios (solo creador puede editar/crear/eliminar)
       document.getElementById("setBizName").value = state.bizName || "";
       document.getElementById("setBizLogo").value = state.bizLogo || "";
       document.getElementById("setCurrency").value = state.currency || "L";
 
+      const canManageUsers = isBusinessCreator();
+      const ownerBadge = document.getElementById("ownerOnlyBadge");
+      const empPanel = document.getElementById("employeeManagerPanel");
+      if (ownerBadge) {
+        ownerBadge.textContent = canManageUsers
+          ? "Modo dueño: puedes crear, editar y eliminar empleados"
+          : "Solo lectura: únicamente el creador del negocio gestiona empleados";
+      }
+      if (empPanel) {
+        empPanel.classList.toggle("hidden", !canManageUsers);
+      }
+
       const usersUl = document.getElementById("teamUsersList");
       if (usersUl) {
         usersUl.innerHTML = (state.users || []).map((u) => `
-          <li class="py-2 flex justify-between items-center">
+          <li class="py-2 flex flex-wrap justify-between items-center gap-2">
             <div>
               <span class="font-bold">${u.name}</span>
               <span class="text-xs text-slate-500">(${u.username})</span>
             </div>
-            <span class="text-xs px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 font-semibold">${u.role}</span>
+            <div class="flex items-center gap-2">
+              <span class="text-xs px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 font-semibold">${u.role}</span>
+              ${canManageUsers ? `
+                <button type="button" onclick="editTeamUser('${u.id}')" class="text-xs font-bold text-indigo-600 hover:underline">Editar</button>
+                <button type="button" onclick="deleteTeamUser('${u.id}')" class="text-xs font-bold text-rose-600 hover:underline">Eliminar</button>
+              ` : ""}
+            </div>
           </li>
         `).join("");
       }
