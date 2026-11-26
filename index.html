@@ -124,7 +124,7 @@
     <!-- Panel en tiempo real de Ingresos y Total de Caja (visible para el administrador) -->
     <div id="adminLiveSummaryBar" class="no-print hidden mb-4 grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-slate-900 text-white rounded-2xl p-3.5 shadow-sm">
       <div class="bg-white/10 rounded-xl p-2.5">
-        <div class="text-[11px] text-slate-300">Ingresos Totales (Ventas)</div>
+        <div class="text-[11px] text-slate-300">Ingresos Totales (Ventas Activas)</div>
         <div id="liveTotalIncomeText" class="text-base font-bold text-emerald-300">L 0.00</div>
       </div>
       <div class="bg-white/10 rounded-xl p-2.5">
@@ -343,11 +343,11 @@
         </div>
       </div>
 
-      <!-- Crear Nuevo Pedido Personalizado -->
-      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-        <h3 class="font-bold text-base mb-3">Nuevo Pedido Personalizado</h3>
+      <!-- Crear Nuevo Pedido Personalizado + Catálogo Rápido del Proveedor -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-bold text-base">Nuevo Pedido Personalizado</h3>
         <form onsubmit="createCustomOrder(event)" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-          <select id="orderSupplierSelect" required class="border rounded-xl px-3 py-2 text-sm"></select>
+          <select id="orderSupplierSelect" onchange="renderSelectedSupplierQuickCatalog()" required class="border rounded-xl px-3 py-2 text-sm"></select>
           <input id="orderProdName" type="text" required placeholder="Producto a pedir" class="border rounded-xl px-3 py-2 text-sm" />
           <input id="orderQty" type="number" min="1" required placeholder="Cantidad" class="border rounded-xl px-3 py-2 text-sm" />
           <input id="orderUnitPrice" type="number" step="0.01" required placeholder="Precio unitario acordado" class="border rounded-xl px-3 py-2 text-sm" />
@@ -362,7 +362,13 @@
           </div>
         </form>
 
-        <div class="mt-4">
+        <!-- Catálogo desplegado del proveedor seleccionado para pedir rápido -->
+        <div class="border rounded-xl p-3 bg-indigo-50/50">
+          <h4 class="font-bold text-xs uppercase tracking-wide text-indigo-900 mb-2">Catálogo Rápido del Proveedor Seleccionado</h4>
+          <div id="selectedSupplierQuickCatalog" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs"></div>
+        </div>
+
+        <div>
           <h4 class="font-bold text-sm mb-2">Pedidos Registrados</h4>
           <div id="ordersHistoryList" class="space-y-2 text-xs"></div>
         </div>
@@ -468,13 +474,16 @@
       </div>
     </section>
 
-    <!-- SECCIÓN 8: AJUSTES, LOGO, MONEDA Y USUARIOS -->
+    <!-- SECCIÓN 8: AJUSTES, LOGO JPG, MONEDA Y USUARIOS -->
     <section id="tab-settings" class="tab-panel hidden space-y-4">
       <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
         <h3 class="font-bold text-base mb-3">Personalización del Negocio y Moneda</h3>
         <form onsubmit="saveBusinessSettings(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <input id="setBizName" type="text" required placeholder="Nombre del negocio" class="border rounded-xl px-3 py-2 text-sm" />
-          <input id="setBizLogo" type="text" placeholder="URL del logo del negocio" class="border rounded-xl px-3 py-2 text-sm" />
+          <div class="space-y-1">
+            <label class="block text-[11px] font-semibold text-slate-600">Logo del negocio (JPG / PNG)</label>
+            <input id="setBizLogoFile" type="file" accept="image/jpeg,image/png" onchange="handleBizLogoFile(event)" class="w-full border rounded-xl px-2 py-1.5 text-xs bg-white" />
+          </div>
           <select id="setCurrency" class="border rounded-xl px-3 py-2 text-sm">
             <option value="L">Lempiras (L)</option>
             <option value="$">Dólares ($)</option>
@@ -555,6 +564,7 @@
       cashOpen: false,
       openingCash: 0,
       closingCash: null,
+      cashPaidOrdersTotal: 0,
       sections: ["General", "Bebidas", "Abarrotes", "Snacks"],
       products: [],
       clients: [],
@@ -574,6 +584,7 @@
     let unsubscribeDoc = null;
     let tempProductPhotoData = "";
     let tempSupplierPhotoData = "";
+    let tempBizLogoData = "";
 
     function isBusinessCreator() {
       const owner = (state.ownerEmail || "").trim().toLowerCase();
@@ -593,6 +604,7 @@
         cashOpen: false,
         openingCash: 0,
         closingCash: null,
+        cashPaidOrdersTotal: 0,
         sections: ["General", "Bebidas", "Abarrotes", "Snacks"],
         products: [
           { id: "p1", name: "Agua Purificada 1L", section: "Bebidas", cost: 8, price: 15, wholesale: 12, stock: 25, sold: 0, photo: "" },
@@ -745,6 +757,12 @@
       const file = e.target.files?.[0];
       if (!file) return;
       tempSupplierPhotoData = await fileToCompressedDataUrl(file, 360);
+    };
+
+    window.handleBizLogoFile = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      tempBizLogoData = await fileToCompressedDataUrl(file, 320);
     };
 
     window.switchAuthTab = (tab) => {
@@ -1117,7 +1135,6 @@
         });
       }
 
-      // Conserva el proveedor seleccionado para facilitar agregar múltiples productos seguidos
       document.getElementById("supItemEditingId").value = "";
       document.getElementById("supProdName").value = "";
       document.getElementById("supProdPrice").value = "";
@@ -1129,6 +1146,41 @@
       renderAll();
       showBanner(`Producto "${productName}" guardado en catálogo.`);
     };
+
+    window.selectCatalogProductForOrder = (itemId) => {
+      const item = (state.supplierCatalog || []).find((x) => x.id === itemId);
+      if (!item) return;
+      document.getElementById("orderSupplierSelect").value = item.supplierId;
+      document.getElementById("orderProdName").value = item.productName;
+      document.getElementById("orderUnitPrice").value = item.price;
+      if (!document.getElementById("orderQty").value) {
+        document.getElementById("orderQty").value = "1";
+      }
+      renderSelectedSupplierQuickCatalog();
+      showBanner(`Producto "${item.productName}" cargado al pedido (${fmt(item.price)}).`);
+    };
+
+    function renderSelectedSupplierQuickCatalog() {
+      const box = document.getElementById("selectedSupplierQuickCatalog");
+      const supId = document.getElementById("orderSupplierSelect")?.value || "";
+      if (!box) return;
+      const items = (state.supplierCatalog || []).filter((x) => x.supplierId === supId);
+      if (!items.length) {
+        box.innerHTML = `<p class="col-span-full text-slate-500">Este proveedor aún no tiene productos en su catálogo. Agrégalos arriba para pedir rápido.</p>`;
+        return;
+      }
+      box.innerHTML = items.map((x) => `
+        <div class="bg-white border rounded-xl p-2.5 flex items-center justify-between gap-2">
+          <div>
+            <div class="font-bold text-slate-900">${x.productName}</div>
+            <div class="text-emerald-700 font-semibold">${fmt(x.price)}</div>
+          </div>
+          <button type="button" onclick="selectCatalogProductForOrder('${x.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap">
+            Seleccionar
+          </button>
+        </div>
+      `).join("");
+    }
 
     function openWhatsAppOrder(order, supplier) {
       const cleanPhone = (supplier?.contact || "").replace(/\D/g, "");
@@ -1164,29 +1216,71 @@
         unitPrice,
         total: qty * unitPrice,
         notes,
-        status: action === "whatsapp" ? "Enviado por WhatsApp" : "Registrado (sin enviar)"
+        status: action === "whatsapp" ? "Enviado por WhatsApp" : "Pendiente de pago"
       };
 
       state.orders = state.orders || [];
       state.orders.unshift(order);
-      e.target.reset();
+      document.getElementById("orderProdName").value = "";
+      document.getElementById("orderQty").value = "";
+      document.getElementById("orderUnitPrice").value = "";
+      document.getElementById("orderNotes").value = "";
       await pushCloudState();
       renderAll();
 
       if (action === "whatsapp") {
         openWhatsAppOrder(order, supplier);
       } else {
-        showBanner(`Pedido ${order.id} guardado sin enviar al proveedor.`);
+        showBanner(`Pedido ${order.id} registrado. Puedes elegir Pagar pedido o Cancelar pedido.`);
       }
+    };
+
+    window.payOrderFromCash = async (orderId) => {
+      const order = (state.orders || []).find((o) => o.id === orderId);
+      if (!order) return;
+      if (order.status === "Pagado") {
+        showBanner(`El pedido ${order.id} ya fue pagado.`);
+        return;
+      }
+      if (order.status === "Cancelado") {
+        showBanner(`El pedido ${order.id} está cancelado y no se puede pagar.`);
+        return;
+      }
+
+      const amount = Number(order.total || 0);
+      state.cashPaidOrdersTotal = Number(state.cashPaidOrdersTotal || 0) + amount;
+      if (state.closingCash != null) {
+        state.closingCash = Number(state.closingCash) - amount;
+      }
+      order.status = "Pagado";
+      order.paidAt = new Date().toLocaleString();
+
+      await pushCloudState();
+      renderAll();
+      showBanner(`Pedido ${order.id} pagado por ${fmt(amount)}. Monto deducido de caja.`);
+    };
+
+    window.cancelOrderItem = async (orderId) => {
+      const order = (state.orders || []).find((o) => o.id === orderId);
+      if (!order) return;
+      if (order.status === "Cancelado") return;
+      if (order.status === "Pagado") {
+        const amount = Number(order.total || 0);
+        state.cashPaidOrdersTotal = Math.max(0, Number(state.cashPaidOrdersTotal || 0) - amount);
+        if (state.closingCash != null) {
+          state.closingCash = Number(state.closingCash) + amount;
+        }
+      }
+      order.status = "Cancelado";
+      await pushCloudState();
+      renderAll();
+      showBanner(`Pedido ${order.id} cancelado.`);
     };
 
     window.sendSavedOrderWhatsApp = (orderId) => {
       const order = (state.orders || []).find((o) => o.id === orderId);
       if (!order) return;
       const supplier = state.suppliers.find((s) => s.id === order.supplierId);
-      order.status = "Enviado por WhatsApp";
-      pushCloudState();
-      renderAll();
       openWhatsAppOrder(order, supplier);
     };
 
@@ -1205,6 +1299,7 @@
       state.cashOpen = true;
       state.openingCash = amount;
       state.closingCash = null;
+      state.cashPaidOrdersTotal = 0;
       await pushCloudState();
       renderAll();
       showBanner(`Caja abierta con efectivo inicial de ${fmt(amount)}.`);
@@ -1222,7 +1317,11 @@
     window.saveBusinessSettings = async (e) => {
       e.preventDefault();
       state.bizName = document.getElementById("setBizName").value.trim() || state.bizName;
-      state.bizLogo = document.getElementById("setBizLogo").value.trim();
+      if (tempBizLogoData) {
+        state.bizLogo = tempBizLogoData;
+        tempBizLogoData = "";
+        document.getElementById("setBizLogoFile").value = "";
+      }
       state.currency = document.getElementById("setCurrency").value || "L";
       await pushCloudState();
       renderAll();
@@ -1303,6 +1402,38 @@
       await pushCloudState();
       renderAll();
       showBanner("Usuario guardado.");
+    };
+
+    window.cancelInvoiceWithReason = async (invoiceId) => {
+      const inv = (state.invoices || []).find((f) => f.id === invoiceId);
+      if (!inv || inv.status === "Cancelada") return;
+
+      const reason = prompt(`Motivo obligatorio para cancelar la factura ${inv.id}:`);
+      if (reason === null || !reason.trim()) {
+        showBanner("Debes escribir un comentario/motivo obligatorio para cancelar la factura.");
+        return;
+      }
+
+      inv.status = "Cancelada";
+      inv.cancelReason = reason.trim();
+      inv.cancelledAt = new Date().toLocaleString();
+      inv.cancelledBy = currentSession.name || currentSession.username;
+
+      // Devolver stock de los productos vendidos
+      for (const item of (inv.items || [])) {
+        const prod = state.products.find((p) => p.id === item.id);
+        if (prod) {
+          prod.stock = Number(prod.stock || 0) + Number(item.qty || 0);
+          prod.sold = Math.max(0, Number(prod.sold || 0) - Number(item.qty || 0));
+        }
+      }
+
+      // Quitar de ventas activas para actualizar ingresos y caja
+      state.sales = (state.sales || []).filter((s) => s.id !== invoiceId);
+
+      await pushCloudState();
+      renderAll();
+      showBanner(`Factura ${inv.id} cancelada. Motivo: ${inv.cancelReason}`);
     };
 
     window.onPosClientTypeChange = () => {
@@ -1420,6 +1551,13 @@
       const clientId = document.getElementById("posClientSelect").value;
       const client = state.clients.find((c) => c.id === clientId);
 
+      let cashAmount = 0;
+      if (method === "Efectivo") {
+        cashAmount = total;
+      } else if (method === "Mixto") {
+        cashAmount = parseFloat(document.getElementById("mixedCash").value) || 0;
+      }
+
       if (method === "Fiado") {
         if (!client || client.id === "c1") {
           showBanner("Selecciona un cliente registrado para vender al fiado.");
@@ -1448,7 +1586,9 @@
         user: currentSession.name || currentSession.username,
         client: client ? `${client.name} (${typeLabel})` : typeLabel,
         method,
+        cashAmount,
         total,
+        status: "Activa",
         items: cart.map((i) => ({ ...i }))
       };
 
@@ -1572,13 +1712,13 @@
         logoFallback.classList.remove("hidden");
       }
 
-      // Barra en vivo de ingresos y caja para administrador / dueño
       const isAdminView = isBusinessCreator() || (currentSession.role || "").toLowerCase().includes("admin");
       const liveBar = document.getElementById("adminLiveSummaryBar");
       const totalIncome = getTotalSalesIncome();
       const openingCash = Number(state.openingCash || 0);
       const cashSales = getCashSalesTotal();
-      const expectedCash = openingCash + cashSales;
+      const paidOrdersCash = Number(state.cashPaidOrdersTotal || 0);
+      const expectedCash = openingCash + cashSales - paidOrdersCash;
       const totalBoxNow = state.closingCash != null ? Number(state.closingCash) : expectedCash;
 
       if (liveBar) {
@@ -1668,6 +1808,8 @@
         if (prevOrdSup && state.suppliers.some((s) => s.id === prevOrdSup)) ordSupSel.value = prevOrdSup;
       }
 
+      renderSelectedSupplierQuickCatalog();
+
       const supListBox = document.getElementById("suppliersListBox");
       if (supListBox) {
         supListBox.innerHTML = state.suppliers.map((s) => `
@@ -1681,18 +1823,28 @@
         `).join("");
       }
 
-      // Pedidos registrados
+      // Pedidos registrados con opciones Pagar pedido y Cancelar pedido
       const ordersBox = document.getElementById("ordersHistoryList");
       if (ordersBox) {
-        ordersBox.innerHTML = (state.orders || []).map((o) => `
-          <div class="border rounded-xl p-3 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div class="font-bold">${o.id} · ${o.productName} (x${o.qty}) · ${o.supplierName}</div>
-              <div class="text-slate-500">${o.date} · Total: <strong>${fmt(o.total)}</strong> · Estado: <strong>${o.status}</strong>${o.notes ? ` · Nota: ${o.notes}` : ""}</div>
+        ordersBox.innerHTML = (state.orders || []).map((o) => {
+          const isPaid = o.status === "Pagado";
+          const isCancelled = o.status === "Cancelado";
+          return `
+            <div class="border rounded-xl p-3 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div class="font-bold">${o.id} · ${o.productName} (x${o.qty}) · ${o.supplierName}</div>
+                <div class="text-slate-500">${o.date} · Total: <strong>${fmt(o.total)}</strong> · Estado: <strong class="${isPaid ? "text-emerald-700" : isCancelled ? "text-rose-700" : "text-amber-700"}">${o.status}</strong>${o.notes ? ` · Nota: ${o.notes}` : ""}</div>
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                ${!isPaid && !isCancelled ? `
+                  <button type="button" onclick="payOrderFromCash('${o.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg">Pagar pedido</button>
+                  <button type="button" onclick="cancelOrderItem('${o.id}')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg">Cancelar pedido</button>
+                ` : ""}
+                <button type="button" onclick="sendSavedOrderWhatsApp('${o.id}')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-2.5 py-1.5 rounded-lg">WhatsApp</button>
+              </div>
             </div>
-            <button type="button" onclick="sendSavedOrderWhatsApp('${o.id}')" class="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-lg">Enviar WhatsApp</button>
-          </div>
-        `).join("") || `<p class="text-slate-400">No hay pedidos registrados todavía.</p>`;
+          `;
+        }).join("") || `<p class="text-slate-400">No hay pedidos registrados todavía.</p>`;
       }
 
       // Comparador y catálogo editable
@@ -1746,18 +1898,25 @@
         recList.innerHTML = combined.map((txt) => `<li class="bg-amber-50 border border-amber-200 text-amber-900 p-2.5 rounded-xl text-xs font-semibold">${txt}</li>`).join("") || `<p class="text-xs text-slate-400">Todo el inventario está cubierto.</p>`;
       }
 
-      // Facturas
+      // Facturas + opción de cancelar factura con motivo obligatorio
       const invList = document.getElementById("invoicesList");
       if (invList) {
-        invList.innerHTML = state.invoices.map((f) => `
-          <div class="border rounded-xl p-3 bg-slate-50 flex flex-wrap justify-between gap-2">
-            <div>
-              <div class="font-bold">${f.id} · ${f.client}</div>
-              <div class="text-xs text-slate-500">${f.date} · Atendió: ${f.user} · Pago: ${f.method}</div>
+        invList.innerHTML = state.invoices.map((f) => {
+          const cancelled = f.status === "Cancelada";
+          return `
+            <div class="border rounded-xl p-3 ${cancelled ? "bg-rose-50/60 border-rose-200" : "bg-slate-50"} flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div class="font-bold">${f.id} · ${f.client} ${cancelled ? `<span class="ml-1 text-xs px-2 py-0.5 rounded bg-rose-100 text-rose-700">Cancelada</span>` : ""}</div>
+                <div class="text-xs text-slate-500">${f.date} · Atendió: ${f.user} · Pago: ${f.method}</div>
+                ${cancelled && f.cancelReason ? `<div class="text-xs text-rose-700 font-medium mt-0.5">Motivo cancelación: "${f.cancelReason}" (${f.cancelledBy || ""})</div>` : ""}
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="font-bold ${cancelled ? "line-through text-slate-400" : "text-indigo-700"}">${fmt(f.total)}</span>
+                ${!cancelled ? `<button type="button" onclick="cancelInvoiceWithReason('${f.id}')" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Cancelar factura</button>` : ""}
+              </div>
             </div>
-            <div class="font-bold text-indigo-700">${fmt(f.total)}</div>
-          </div>
-        `).join("") || `<p class="text-xs text-slate-400">No hay facturas registradas todavía.</p>`;
+          `;
+        }).join("") || `<p class="text-xs text-slate-400">No hay facturas registradas todavía.</p>`;
       }
 
       // Inversión y ganancia estimada
@@ -1777,7 +1936,7 @@
       if (cashStatus) cashStatus.textContent = state.cashOpen ? `Abierta (Inicial: ${fmt(openingCash)})` : "Cerrada";
 
       document.getElementById("recOpeningText").textContent = fmt(openingCash);
-      document.getElementById("recCashSalesText").textContent = fmt(cashSales);
+      document.getElementById("recCashSalesText").textContent = fmt(cashSales - paidOrdersCash);
       document.getElementById("recExpectedCashText").textContent = fmt(expectedCash);
 
       const recDiffEl = document.getElementById("recDiffText");
@@ -1802,7 +1961,6 @@
 
       // Ajustes y usuarios (solo creador puede editar/crear/eliminar)
       document.getElementById("setBizName").value = state.bizName || "";
-      document.getElementById("setBizLogo").value = state.bizLogo || "";
       document.getElementById("setCurrency").value = state.currency || "L";
 
       const canManageUsers = isBusinessCreator();
